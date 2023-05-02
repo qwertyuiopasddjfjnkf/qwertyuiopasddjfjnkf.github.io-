@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTML编辑器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/hint/show-hint.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/hint/html-hint.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/foldgutter.css" />
+
+    <style>
+        .CodeMirror {
+            height: 100%;
+            font-size: 16px;
+        }
+        .CodeMirror-foldmarker {
+            color: #999;
+        }
+        .CodeMirror-foldgutter-open,
+        .CodeMirror-foldgutter-folded {
+            background: none !important;
+        }
+        .CodeMirror-selected {
+            background-color: #d9edf7 !important;
+        }
+        .CodeMirror-gutters {
+            background-color: #f7f7f7;
+            border-right: 1px solid #ddd;
+        }
+        .CodeMirror-linenumber {
+            color: #aaa;
+        }
+        .CodeMirror-hint {
+            font-size: 90%;
+        }
+        .CodeMirror-hint-box {
+            font-size: 90%;
+            background-color: #f7f7f7;
+            border: 1px solid #ddd;
+            z-index: 10;
+        }
+        .CodeMirror-hint-active {
+            background-color: #d9edf7 !important;
+        }
+
+        /* 新增样式 */
+        #editor-wrapper {
+            height: calc(100vh - 80px); /* 编辑区域高度自适应屏幕大小 */
+            resize: none; /* 禁止调整编辑区域大小 */
+            float: left;
+            width: 70%;
+        }
+
+        #buttons {
+            float: right;
+            width: 30%;
+            text-align: right;
+            margin-top: 20px;
+            margin-right: 20px;
+        }
+
+        #run-button, #download-button {
+            padding: 10px 20px;
+            font-size: 18px;
+            color: #fff;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        #run-button:hover, #download-button:hover {
+            background-color: #3e8e41;
+        }
+
+        /* 新增样式 */
+        .CodeMirror-wrap {
+            background-color: #fff;
+        }
+
+        @media screen and (max-width: 768px) {
+            /* 屏幕宽度小于768px时，编辑器和按钮宽度为100%，使它们在手机上更容易使用 */
+            #editor-wrapper {
+                width: 100%;
+            }
+
+            #buttons {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="editor-wrapper">
+        <textarea id="editor"></textarea>
+    </div>
+
+    <div id="buttons">
+        <button id="run-button" onclick="runCode()">运行</button>
+        <button id="download-button" onclick="downloadCode()">下载文件</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/codemirror.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/xml/xml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/javascript/javascript.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/css/css.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/hint/show-hint.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/hint/html-hint.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/foldcode.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/foldgutter.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/xml-fold.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/brace-fold.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.0/addon/fold/comment-fold.js"></script>
+    <script>
+        var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+            mode: "htmlmixed",
+            lineNumbers: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            matchBrackets: true,
+            autoCloseTags: true,
+            extraKeys: {"Ctrl-Space": "autocomplete"},
+            hintOptions: {
+                schemaInfo: [
+                    {name: "src", hint: function(cm, options) {
+                        return CodeMirror.hint.url(cm, options, {
+                            file: /^image\//i,
+                            template: function(value) {
+                                return '< img src="' + value + '" />';
+                            }
+                        });
+                    }},
+                    {name: "alt", hint: function(cm, options) {
+                        return CodeMirror.hint.text(cm, options, {
+                            template: function(value) {
+                                return '< img alt="' + value + '" />';
+                            }
+                        });
+                    }},
+                    {tag: "a", attrs: {href: null}},
+                    {tag: "video", attrs: {src: null}},
+                    {tag: "audio", attrs: {src: null}},
+                    {tag: "iframe", attrs: {src: null}},
+                    {tag: "form", attrs: {action: null}},
+                    {tag: "input", attrs: {type: ["button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "text", "time", "url", "week"], name: null, value: null}},
+                    {tag: "select", attrs: {name: null}},
+                    {tag: "option", attrs: {value: null}},
+                    {tag: "textarea", attrs: {name: null}},
+                    {tag: "label", attrs: {for: null}},
+                    {tag: "table", attrs: {cellpadding: null, cellspacing: null}},
+                    {tag: "tr", attrs: {rowspan: null, colspan: null}},
+                    {tag: "td", attrs: {rowspan: null, colspan: null}}
+                ]
+            }
+        });
+
+        function runCode() {
+            var html = editor.getValue();
+            var runWindow = window.open("", "_blank");
+            runWindow.document.write(html);
+            runWindow.document.close();
+        }
+
+        function downloadCode() {
+            var html = editor.getValue();
+            var blob = new Blob([html], {type: "text/html;charset=utf-8"});
+            // 使用FileSaver.js库来下载文件
+            saveAs(blob, "index.html");
+        }
+        
+        // FileSaver.js库的实现代码
+        var saveAs = saveAs || (function(view) {
+            "use strict";
+            if (typeof view === "undefined" || typeof navigator !== "undefined" && /MSIE [1-9]\./.test(navigator.userAgent)) {
+                return;
+            }
+            var doc = view.document
+              , get_URL = function() {
+                return view.URL || view.webkitURL || view;
+            }
+              , save_link = doc.createElementNS("http://www.w3.org/1999/xhtml", "a")
+              , can_use_save_link = "download"in save_link
+              , click = function(node) {
+                var event = new MouseEvent("click");
+                node.dispatchEvent(event);
+            }
+              , is_safari = /constructor/i.test(view.HTMLElement) || view.safari
+              , is_chrome_ios =/CriOS\/[\d]+/.test(navigator.userAgent)
+              , throw_outside = function(ex) {
+                (view.setImmediate || view.setTimeout)(function() {
+                    throw ex;
+                }, 0);
+            }
+              , force_saveable_type = "application/octet-stream"
+              , arbitrary_revoke_timeout = 1000 * 40
+              , revoke = function(file) {
+                var revoker = function() {
+                    if (typeof file === "string") {
+                        get_URL().revokeObjectURL(file);
+                    } else {
+                        file.remove();
+                    }
+                };
+                setTimeout(revoker, arbitrary_revoke_timeout);
+            }
+              , dispatch = function(filesaver, event_types, event) {
+                event_types = [].concat(event_types);
+                var i = event_types.length;
+                while (i--) {
+                    var listener = filesaver["on" + event_types[i]];
+                    if (typeof listener === "function") {
+                        try {
+                            listener.call(filesaver, event || filesaver);
+                        } catch (ex) {
+                            throw_outside(ex);
+                        }
+                    }
+                }
+            }
+              , auto_bom = function(blob) {
+                if (!blob.type && /\/(pdf|xml|jpeg|png|gif|svg|woff)$/i.test(blob.name)) {
+                    blob.type = force_saveable_type;
+                }
+            }
+              , FileSaver = function(blob, name, no_auto_bom) {
+                if (!no_auto_bom) {
+                    auto_bom(blob);
+                }
+                var object_url =get_URL().createObjectURL(blob);
+var opened = false;
+var filesaver = this;
+var type = blob.type;
+var force = type === force_saveable_type;
+if (force) {
+var extension = /.$/.exec(name);
+if (extension) {
+extension = extension[1].toLowerCase();
+}
+force = extension === "bin" || extension === "txt" || extension === "json";
+}
+if (force) {
+type = "application/octet-stream";
+}
+if (can_use_save_link) {
+save_link.href = object_url;
+save_link.download = name;
+click(save_link);
+opened = true;
+dispatch(filesaver, "writeend", null);
+} else {
+var new_tab = view.open(object_url, "_blank");
+if (new_tab === undefined && is_safari) {
+view.location.href = object_url;
+opened = true;
+dispatch(filesaver, "writeend", null);
+}
+}
+if (!opened) {
+var reader = new FileReader();
+reader.onload = function() {
+var url = can_use_save_link ? reader.result : object_url;
+var popup = view.open(url, "_blank");
+if (!popup) {
+view.location.href = url;
+}
+popup = null;
+dispatch(filesaver, "writeend", null);
+};
+reader.readAsDataURL(blob);
+}
+return filesaver;
+}
+, FS_proto = FileSaver.prototype
+, saveAs = function(blob, name, no_auto_bom) {
+return new FileSaver(blob,name || blob.name || "download",no_auto_bom);
+}
+;
+if (typeof navigator !== "undefined" && navigator.msSaveOrOpenBlob) {
+return function(blob, name, no_auto_bom) {
+name = name || blob.name || "download";
+if (!no_auto_bom) {
+auto_bom(blob);
+}
+return navigator.msSaveOrOpenBlob(blob, name);
+};
+}
+FS_proto.abort = function() {};
+FS_proto.readyState = FS_proto.INIT = 0;
+FS_proto.WRITING = 1;
+FS_proto.DONE = 2;
+FS_proto.error = FS_proto.onwritestart = FS_proto.onprogress = FS_proto.onwrite = FS_proto.onabort = FS_proto.onerror = FS_proto.onwriteend = null;
+return saveAs;
+}(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content));
+</script>
+</body>
+</html>
